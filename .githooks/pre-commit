@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+set -e
+
+# Read config
+CONFIG_FILE=".githooks/.precommit-config"
+
+printf "\e[33;1m%s\e[0m\n" "Reading config from $CONFIG_FILE"
+
+if [ -f "$CONFIG_FILE" ]; then
+
+    source "$CONFIG_FILE"
+else
+    printf "\e[33;1m%s\e[0m\n" "No config file found. Using defaults."
+    # Default configuration
+    ENABLE_FORMAT=true
+fi
+
+printf "\e[33;1m%s\e[0m\n" "Config: ENABLE_FORMAT=$ENABLE_FORMAT"
+
+# Check if formatting is enabled
+if [ "$ENABLE_FORMAT" != "true" ]; then
+    printf "\e[33;1m%s\e[0m\n" "Formatting is disabled by config. Skipping."
+    exit 0
+fi
+
+
+# get staged files
+staged_files=$(git diff --cached --name-only --diff-filter=ACM | grep -v '^\.githooks/' || true)
+
+
+if [ -z "$staged_files" ]; then
+  printf "\e[31;1m%s\e[0m\n" 'No staged files found.'
+  exit 0
+fi
+
+printf "\e[33;1m%s\e[0m\n" 'Running dart format on staged files…'
+
+# format all staged files at once
+result=$(dart format $staged_files)
+
+
+if [[ "$result" == *"Formatted no files."* ]]; then
+  printf "\e[32;1m%s\e[0m\n" 'No staged file formatted.'
+else
+  printf "\e[32;1m%s\e[0m\n" 'Staged files were formatted.'
+fi
+
+echo "$result"
+
+# re-add all the staged files after formatting
+git add $staged_files
+
+printf "\e[32;1m%s\e[0m\n" 'Staged files updated after formatting.'
